@@ -1,15 +1,21 @@
 {
-  "inventory": {
+  "sales":{
+    
     "nozzles": [
       {
         "dispenser":"string",
-        "beginning_inventory":"number",
+        "beginning_register":"number",
         "calibration":"number",
         "po":"number",
         "cash":"number",
         "price":"number",
-        "ending_inventory":"number"
+        "ending_register":"number",
+        "analog_register":"number"
       }
-    ]
+    ],
+  
+    "total_sales":"number",
+    "expenses":"number",
+    "net_sales":"number"
   }
 }

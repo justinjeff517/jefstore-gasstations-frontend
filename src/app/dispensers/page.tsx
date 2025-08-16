@@ -6,61 +6,70 @@ import { Input } from '@/components/ui/input'
 import { Pencil } from 'lucide-react'
 
 type NozzleRecord = {
-  nozzle: string
-  beginning_inventory: number
+  dispenser: string
+  beginning_register: number
   calibration: number
   po: number
   cash: number
   price: number
-  ending_inventory: number
+  ending_register: number
+  analog_register: number
 }
+
 type DispenserRecord = {
-  dispenser: string
   nozzles: NozzleRecord[]
 }
 
 type Row = {
   Product: string
-  BeginningStock: number
+  BeginningRegister: number
   Calibration: number
   PO: number
+  Cash: number
   Sold: number
-  EndingStock: number
+  EndingRegister: number
   Unit: string
   Price: number
+  AnalogRegister: number
   submitted: boolean
 }
 
 const fuelData: DispenserRecord[] = [
   {
-    dispenser: 'Dispenser A',
     nozzles: [
-      { nozzle: 'Regular', beginning_inventory: 1200, calibration: 0, po: 0, cash: 0, price: 65.0, ending_inventory: 0 },
-      { nozzle: 'Diesel',  beginning_inventory: 1500, calibration: 0, po: 0, cash: 0, price: 68.5, ending_inventory: 0 },
-    ],
-  },
-  {
-    dispenser: 'Dispenser B',
-    nozzles: [
-      { nozzle: 'Regular', beginning_inventory: 1100, calibration: 0, po: 0, cash: 0, price: 65.0, ending_inventory: 0 },
-      { nozzle: 'Diesel',  beginning_inventory: 1400, calibration: 0, po: 0, cash: 0, price: 68.5, ending_inventory: 0 },
+      { dispenser: 'Dispenser A — Regular', beginning_register: 1200, calibration: 0, po: 0, cash: 0, price: 65.0, ending_register: 0, analog_register: 0 },
+      { dispenser: 'Dispenser A — Diesel',  beginning_register: 1500, calibration: 0, po: 0, cash: 0, price: 68.5, ending_register: 0, analog_register: 0 },
+      { dispenser: 'Dispenser B — Regular', beginning_register: 1100, calibration: 0, po: 0, cash: 0, price: 65.0, ending_register: 0, analog_register: 0 },
+      { dispenser: 'Dispenser B — Diesel',  beginning_register: 1400, calibration: 0, po: 0, cash: 0, price: 68.5, ending_register: 0, analog_register: 0 },
     ],
   },
 ]
 
+// 🔹 Build an immutable map of initial analog registers from fuelData
+const initialAnalogByProduct: Record<string, number> = Object.fromEntries(
+  fuelData.flatMap(d =>
+    d.nozzles.map(n => [n.dispenser, n.analog_register ?? 0] as const)
+  )
+)
 
 const initialRows: Row[] = fuelData.flatMap(d =>
-  d.nozzles.map(n => ({
-    Product: `${d.dispenser} — ${n.nozzle}`,
-    BeginningStock: n.beginning_inventory,
-    Calibration: n.calibration,
-    PO: n.po,
-    Sold: n.cash,
-    EndingStock: n.ending_inventory,
-    Unit: 'L',
-    Price: n.price,
-    submitted: true,
-  }))
+  d.nozzles.map(n => {
+    const sold = Math.max(0, (n.po || 0) + (n.cash || 0))
+    const end = Math.max(0, n.beginning_register + (n.calibration || 0) - sold)
+    return {
+      Product: n.dispenser,
+      BeginningRegister: n.beginning_register,
+      Calibration: n.calibration,
+      PO: n.po,
+      Cash: n.cash,
+      Sold: sold,
+      EndingRegister: end,
+      Unit: 'L',
+      Price: n.price,
+      AnalogRegister: n.analog_register || 0,
+      submitted: true,
+    }
+  })
 )
 
 export default function Page() {
@@ -72,6 +81,7 @@ export default function Page() {
     cash: 0,
     price: 0,
   })
+  const [baseAnalog, setBaseAnalog] = useState<number>(0)
 
   const currency = (v: number) =>
     `₱ ${Number.isFinite(v) ? v.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}`
@@ -79,7 +89,8 @@ export default function Page() {
   const startEdit = (product: string) => {
     const r = rows.find(x => x.Product === product)
     if (!r) return
-    setDraft({ calibration: r.Calibration, po: r.PO, cash: r.Sold, price: r.Price })
+    setDraft({ calibration: r.Calibration, po: r.PO, cash: r.Cash, price: r.Price })
+    setBaseAnalog(initialAnalogByProduct[product] ?? 0)
     setEditing(product)
   }
 
@@ -90,50 +101,42 @@ export default function Page() {
     return Number.isFinite(n) ? n : 0
   }
 
-  const saveEdit = () => {
-    if (!editing) return
-    setRows(prev =>
-      prev.map(r => {
-        if (r.Product !== editing) return r
-        const calibration = toNum(draft.calibration)
-        const po = Math.max(0, toNum(draft.po))
-        const cash = Math.max(0, toNum(draft.cash))
-        const price = Math.max(0, toNum(draft.price))
-        const ending = r.BeginningStock + calibration + po - cash
-        return {
-          ...r,
-          Calibration: calibration,
-          PO: po,
-          Sold: cash,
-          Price: price,
-          EndingStock: Math.max(0, ending),
-          submitted: true,
-        }
-      })
-    )
-    setEditing(null)
-  }
+const saveEdit = () => {
+  if (!editing) return
+  setRows(prev =>
+    prev.map(r => {
+      if (r.Product !== editing) return r
+      const calibration = toNum(draft.calibration)
+      const po = Math.max(0, toNum(draft.po))
+      const cash = Math.max(0, toNum(draft.cash))
+      const price = Math.max(0, toNum(draft.price))
 
-  // 👉 Adjust this to your actual bottom nav height (in px)
+      const sold = Math.max(0, po + cash)
+      const ending = Math.max(0, r.BeginningRegister + calibration + sold + cash)
+
+      return {
+        ...r,
+        Calibration: calibration,
+        PO: po,
+        Cash: cash,
+        Sold: sold,
+        EndingRegister: ending,
+        Price: price,
+        AnalogRegister: baseAnalog + calibration + po + cash,
+        submitted: true,
+      }
+    })
+  )
+  setEditing(null)
+}
+
+
   const NAV_HEIGHT = 64
 
   return (
-    <div
-      className="p-4 space-y-3 overflow-y-auto"
-
-    >
+    <div className="p-4 space-y-3 overflow-y-auto" style={{ paddingBottom: NAV_HEIGHT }}>
       {rows.map(r => {
         const isEditing = editing === r.Product
-        const begin = r.BeginningStock
-
-        const calibrationLive = isEditing ? toNum(draft.calibration) : r.Calibration
-        const poLive = isEditing ? Math.max(0, toNum(draft.po)) : r.PO
-        const cashLive = isEditing ? Math.max(0, toNum(draft.cash)) : r.Sold
-        const priceLive = isEditing ? Math.max(0, toNum(draft.price)) : r.Price
-
-        const endingComputed = begin + calibrationLive + poLive - cashLive
-        const endingLive = Math.max(0, endingComputed)
-
         const borderColor = isEditing ? 'border-red-500' : r.submitted ? 'border-green-500' : 'border-red-500'
 
         return (
@@ -143,9 +146,9 @@ export default function Page() {
             {!isEditing && (
               <>
                 <div className="grid grid-cols-3 gap-2 text-sm">
-                  {[{ label: 'Beginning', qty: r.BeginningStock },
+                  {[{ label: 'Beginning', qty: r.BeginningRegister },
                     { label: 'Sold', qty: r.Sold },
-                    { label: 'Ending', qty: r.EndingStock }].map(({ label, qty }) => (
+                    { label: 'Ending', qty: r.EndingRegister }].map(({ label, qty }) => (
                     <div key={label} className="rounded-lg bg-muted p-2 text-center flex flex-col justify-center">
                       <div className="font-semibold">{qty.toLocaleString()} {r.Unit}</div>
                       <div className="text-xs opacity-70">{currency(qty * r.Price)}</div>
@@ -154,7 +157,7 @@ export default function Page() {
                   ))}
                 </div>
 
-                <div className="grid grid-cols-4 gap-2 text-xs">
+                <div className="grid grid-cols-5 gap-2 text-xs">
                   <div className="rounded-lg bg-muted p-2 text-center">
                     <div className="font-semibold">{r.Calibration}</div>
                     <div className="opacity-70">Calibration</div>
@@ -164,12 +167,16 @@ export default function Page() {
                     <div className="opacity-70">PO</div>
                   </div>
                   <div className="rounded-lg bg-muted p-2 text-center">
+                    <div className="font-semibold">{r.Cash}</div>
+                    <div className="opacity-70">Cash</div>
+                  </div>
+                  <div className="rounded-lg bg-muted p-2 text-center">
                     <div className="font-semibold">{r.Price.toFixed(2)}</div>
                     <div className="opacity-70">₱/L</div>
                   </div>
                   <div className="rounded-lg bg-muted p-2 text-center">
-                    <div className="font-semibold">{currency(r.Sold * r.Price)}</div>
-                    <div className="opacity-70">Sales</div>
+                    <div className="font-semibold">{r.AnalogRegister.toLocaleString()}</div>
+                    <div className="opacity-70">Analog Reg.</div>
                   </div>
                 </div>
 
@@ -183,12 +190,6 @@ export default function Page() {
             {isEditing && (
               <>
                 <div className="grid grid-cols-4 gap-2">
-                  <div className="space-y-1">
-                    <div className="text-xs opacity-70">Beginning ({r.Unit})</div>
-                    <Input value={begin} disabled className="text-center disabled:opacity-100" />
-                    <div className="text-[11px] text-right opacity-70">{currency(begin * priceLive)}</div>
-                  </div>
-
                   <div className="space-y-1">
                     <div className="text-xs opacity-70">Calibration ({r.Unit})</div>
                     <Input
@@ -211,7 +212,7 @@ export default function Page() {
                   </div>
 
                   <div className="space-y-1">
-                    <div className="text-xs opacity-70">Sold ({r.Unit})</div>
+                    <div className="text-xs opacity-70">Cash ({r.Unit})</div>
                     <Input
                       type="number"
                       min="0"
@@ -219,11 +220,8 @@ export default function Page() {
                       onChange={(e) => setDraft(d => ({ ...d, cash: toNum(e.target.value) }))}
                       className="text-center"
                     />
-                    <div className="text-[11px] text-right opacity-70">{currency(cashLive * priceLive)}</div>
                   </div>
-                </div>
 
-                <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-1">
                     <div className="text-xs opacity-70">Price (₱/L)</div>
                     <Input
@@ -235,17 +233,11 @@ export default function Page() {
                       className="text-center"
                     />
                   </div>
-
-                  <div className="space-y-1">
-                    <div className="text-xs opacity-70">Ending ({r.Unit})</div>
-                    <Input value={endingLive} disabled className="text-center disabled:opacity-100" />
-                    <div className="text:[11px] text-right opacity-70">{currency(endingLive * priceLive)}</div>
-                  </div>
                 </div>
 
                 <div className="flex gap-2">
-                  <Button onClick={saveEdit} className="w-full">Save</Button>
-                  <Button onClick={cancelEdit} variant="secondary" className="w-full">Cancel</Button>
+                  <Button onClick={saveEdit} className="flex-1">Save</Button>
+                  <Button onClick={cancelEdit} variant="secondary" className="flex-1">Cancel</Button>
                 </div>
               </>
             )}
