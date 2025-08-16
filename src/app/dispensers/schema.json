@@ -1,0 +1,15 @@
+{
+  "inventory": {
+    "nozzles": [
+      {
+        "dispenser":"string",
+        "beginning_inventory":"number",
+        "calibration":"number",
+        "po":"number",
+        "cash":"number",
+        "price":"number",
+        "ending_inventory":"number"
+      }
+    ]
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "lubricants": [
+    {
+      "name": "string",
+      "unit": "string",
+      "beginning_inventory": "number",
+      "po": "number",
+      "cash": "number",
+      "price": "number",
+      "ending_inventory": "number"
+    }
+  ]
+}
