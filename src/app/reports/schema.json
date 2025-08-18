@@ -1,5 +1,0 @@
-{
-    "date": "string",
-    "employees": "array",
-    "amount": "number"
-}
