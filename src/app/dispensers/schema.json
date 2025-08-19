@@ -3,14 +3,16 @@
     
     "nozzles": [
       {
-        "dispenser":"string",
-        "beginning_register":"number",
-        "calibration":"number",
-        "po":"number",
-        "cash":"number",
-        "price":"number",
-        "ending_register":"number",
-        "analog_register":"number"
+          "dispenser": "string",
+          "nozzle": "string",
+          "date":"string", 
+          "beginning_register": "number",
+          "ending_register": "number",
+          "analog_register": "number",
+          "calibration": "number",
+          "price": "number",
+          "po": "number",
+          "cash": "number"
       }
     ],
   
