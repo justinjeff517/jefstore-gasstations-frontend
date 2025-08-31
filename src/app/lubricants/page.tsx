@@ -12,6 +12,8 @@ import {
   DialogFooter,
   DialogTrigger,
 } from '@/components/ui/dialog'
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AlertTriangle } from "lucide-react"
 import { Checkbox } from '@/components/ui/checkbox'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
@@ -43,6 +45,8 @@ const currency = (v: number) =>
 
 export default function LubricantsPage() {
   const [rows, setRows] = useState<Lubricant[]>(initialCatalog)
+  const [alert, setAlert] = useState<{title: string; message: string} | null>(null)
+
   const [editing, setEditing] = useState<string | null>(null)
   const [draft, setDraft] = useState<{ addstock: number; po: number; cash: number; price: number }>({ addstock: 0, po: 0, cash: 0, price: 0 })
 
@@ -59,6 +63,7 @@ export default function LubricantsPage() {
     if (!r) return
     setDraft({ addstock: r.addstock, po: r.po, cash: r.cash, price: r.price })
     setEditing(name)
+    //setAlert(true)
   }
 
   const cancelEdit = () => setEditing(null)
@@ -89,6 +94,18 @@ export default function LubricantsPage() {
 
   return (
     <div className="p-4 space-y-4 pb-24">
+
+{alert && (
+  <Alert variant="destructive" className="mb-4">
+    <AlertTriangle className="h-4 w-4" />
+    <div className="flex flex-col">
+      <AlertTitle>{alert.title}</AlertTitle>
+      <AlertDescription>{alert.message}</AlertDescription>
+    </div>
+  </Alert>
+)}
+
+
       <div className="flex items-center gap-2">
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogTrigger asChild>

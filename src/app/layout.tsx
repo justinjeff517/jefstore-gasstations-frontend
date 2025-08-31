@@ -24,12 +24,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-dvh bg-background text-foreground`}>
-        <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-          <div className="mx-auto max-w-md px-4 py-3">
-            <div className="text-lg font-semibold tracking-tight">Gas Station ERP</div>
-            <div className="text-xs text-muted-foreground">Sales & Dispense Recorder</div>
-          </div>
-        </header>
+
         <main className="mx-auto max-w-md px-4 pb-24 pt-4">
           {children}
         </main>
