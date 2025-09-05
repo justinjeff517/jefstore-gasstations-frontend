@@ -1,67 +1,23 @@
 'use client'
 
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Pencil } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { RowCard } from '@/components/dispensers/RowCard'
+import { Keycap } from '@/components/Keycap'
+import type { DispenserSpec, Row, UpdateRecord } from '@/lib/dispensers/types'
+import { keyOf, toNum } from '@/lib/dispensers/utils'
 
-// ---------------- Dispensers (source of rows) ----------------
-type NozzleSpec = { id: 'nozzle_1' | 'nozzle_2'; product: 'Diesel' | 'Regular' }
-type DispenserSpec = { dispenser_id: 'dispenser_1' | 'dispenser_2'; location: 'East' | 'West'; nozzles: NozzleSpec[] }
+const today = new Date().toISOString().slice(0, 10)
 
 const DISPENSERS: DispenserSpec[] = [
-  {
-    dispenser_id: 'dispenser_1',
-    location: 'East',
-    nozzles: [
-      { id: 'nozzle_1', product: 'Diesel' },
-      { id: 'nozzle_2', product: 'Regular' },
-    ],
-  },
-  {
-    dispenser_id: 'dispenser_2',
-    location: 'West',
-    nozzles: [
-      { id: 'nozzle_1', product: 'Diesel' },
-      { id: 'nozzle_2', product: 'Regular' },
-    ],
-  },
+  { dispenser_id: 'dispenser_1', location: 'East', nozzles: [{ id: 'nozzle_1', product: 'Diesel' }, { id: 'nozzle_2', product: 'Regular' }] },
+  { dispenser_id: 'dispenser_2', location: 'West', nozzles: [{ id: 'nozzle_1', product: 'Diesel' }, { id: 'nozzle_2', product: 'Regular' }] },
 ]
 
-// ---------------- Schema (order locked) ----------------
-type UpdateRecord = {
-  dispenser: string
-  nozzle: string
-  date: string
-  beginning_register: number
-  ending_register: number
-  analog_register: number
-  calibration: number
-  price: number
-  po: number
-  cash: number
-}
-
-// UI row extends ordered schema with extras for display
-type Row = UpdateRecord & {
-  product_label: string   // e.g., "DISPENSER_1 — Diesel"
-  unit: 'L'
-  submitted: boolean
-}
-
-// ---------------- Helpers ----------------
-const today = new Date().toISOString().slice(0, 10)
-const keyOf = (r: { dispenser: string; nozzle: string }) => `${r.dispenser}::${r.nozzle}`
-const toNum = (v: any) => (Number.isFinite(Number(v)) ? Number(v) : 0)
-const currency = (v: number) =>
-  `₱ ${Number.isFinite(v) ? v.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}`
-
-// Base analog per nozzle (hydrate from “yesterday” in real use)
 const baseAnalogByKey: Record<string, number> = Object.fromEntries(
   DISPENSERS.flatMap(d => d.nozzles.map(n => [keyOf({ dispenser: d.dispenser_id, nozzle: n.id }), 0] as const))
 )
 
-// ---------------- Initial rows (schema order preserved) ----------------
 const initialRows: Row[] = DISPENSERS.flatMap(d =>
   d.nozzles.map(n => {
     const dispenser = d.dispenser_id
@@ -75,9 +31,7 @@ const initialRows: Row[] = DISPENSERS.flatMap(d =>
     const delta = calibration + po + cash
     const ending_register = beginning_register + delta
     const analog_register = (baseAnalogByKey[keyOf({ dispenser, nozzle })] ?? 0) + delta
-
     return {
-      // ---- schema fields in exact order ----
       dispenser,
       nozzle,
       date,
@@ -88,7 +42,6 @@ const initialRows: Row[] = DISPENSERS.flatMap(d =>
       price,
       po,
       cash,
-      // ---- ui helpers ----
       product_label: `${dispenser.toUpperCase().replace('_', ' ')} — ${n.product}`,
       unit: 'L',
       submitted: true,
@@ -96,273 +49,198 @@ const initialRows: Row[] = DISPENSERS.flatMap(d =>
   })
 )
 
-// ---------------- Component ----------------
 export default function Page() {
-  const [rows, setRows] = useState<Row[]>(initialRows)
-  const [editingKey, setEditingKey] = useState<string | null>(null)
-  const [draft, setDraft] = useState<Partial<UpdateRecord>>({})
-  const [draftBaseAnalog, setDraftBaseAnalog] = useState<number>(0)
-
-  const startEdit = (r: Row) => {
-    setEditingKey(keyOf(r))
-    setDraft({
-      dispenser: r.dispenser,
-      nozzle: r.nozzle,
-      date: r.date,
-      beginning_register: r.beginning_register,
-      ending_register: r.ending_register,      // kept for completeness, recalculated on save
-      analog_register: r.analog_register,      // kept for completeness, recalculated on save
-      calibration: r.calibration,
-      price: r.price,
-      po: r.po,
-      cash: r.cash,
-    })
-    setDraftBaseAnalog(baseAnalogByKey[keyOf(r)] ?? 0)
-  }
-
-  const cancelEdit = () => {
-    setEditingKey(null)
-    setDraft({})
-  }
-
-  const saveEdit = () => {
-    if (!editingKey) return
-    setRows(prev =>
-      prev.map(r => {
-        if (keyOf(r) !== editingKey) return r
-
-        // —— read in schema order ——
-        const dispenser = r.dispenser // fixed identity
-        const nozzle = r.nozzle       // fixed identity
-        const date = (draft.date as string) || r.date
-
-        const beginning_register = toNum(draft.beginning_register ?? r.beginning_register)
-        const calibration = toNum(draft.calibration ?? r.calibration)
-        const price = Math.max(0, toNum(draft.price ?? r.price))
-        const po = Math.max(0, toNum(draft.po ?? r.po))
-        const cash = Math.max(0, toNum(draft.cash ?? r.cash))
-
-        // Intended rules:
-        // ending_register = beginning_register + calibration + po + cash
-        // analog_register = baseAnalog(yesterday) + calibration + po + cash
-        const delta = calibration + po + cash
-        const ending_register = beginning_register + delta
-        const analog_register = draftBaseAnalog + delta
-
-        return {
-          // —— write back in schema order ——
-          dispenser,
-          nozzle,
-          date,
-          beginning_register,
-          ending_register,
-          analog_register,
-          calibration,
-          price,
-          po,
-          cash,
-          // —— ui helpers ——
-          product_label: r.product_label,
-          unit: r.unit,
-          submitted: true,
-        }
-      })
-    )
-    setEditingKey(null)
-    setDraft({})
-  }
-
+  const router = useRouter()
+  const [rows] = useState<Row[]>(initialRows)
+  const [hotkeyArmed, setHotkeyArmed] = useState(false)
+  const [chooserOpen, setChooserOpen] = useState(false)
+  const armTimer = useRef<number | null>(null)
   const NAV_HEIGHT = 64
 
-  return (
-    <div className="p-4 space-y-3 overflow-y-auto" style={{ paddingBottom: NAV_HEIGHT }}>
-      {rows.map(r => {
-        const isEditing = editingKey === keyOf(r)
-        const borderColor = isEditing ? 'border-red-500' : r.submitted ? 'border-green-500' : 'border-red-500'
-        const sold = r.po + r.cash
+  const disarm = () => {
+    setHotkeyArmed(false)
+    if (armTimer.current) {
+      window.clearTimeout(armTimer.current)
+      armTimer.current = null
+    }
+  }
 
+  const gotoPump = (pumpNumber: number) => {
+    if (pumpNumber < 1 || pumpNumber > 4) return
+    router.push(`/dispensers/${pumpNumber}`)
+  }
+
+  useEffect(() => {
+    const isTyping = (el: EventTarget | null) => {
+      if (!(el instanceof HTMLElement)) return false
+      const tag = el.tagName
+      const editable = el.getAttribute('contenteditable')
+      return tag === 'INPUT' || tag === 'TEXTAREA' || editable === '' || editable === 'true'
+    }
+
+    const onKey = (e: KeyboardEvent) => {
+      if (e.repeat) return
+      if (isTyping(e.target)) return
+
+      if (e.key === '0') {
+        e.preventDefault()
+        setChooserOpen(true)
+        disarm()
+        return
+      }
+
+      if (chooserOpen) {
+        if (['1', '2', '3', '4'].includes(e.key)) {
+          e.preventDefault()
+          gotoPump(Number(e.key))
+          setChooserOpen(false)
+          return
+        }
+        if (e.key === 'Escape' || e.key === '0') {
+          e.preventDefault()
+          setChooserOpen(false)
+          return
+        }
+        return
+      }
+
+      if (!hotkeyArmed && e.key === '9') {
+        setHotkeyArmed(true)
+        if (armTimer.current) window.clearTimeout(armTimer.current)
+        armTimer.current = window.setTimeout(() => setHotkeyArmed(false), 3000) as unknown as number
+        return
+      }
+
+      if (hotkeyArmed && ['1', '2', '3', '4'].includes(e.key)) {
+        e.preventDefault()
+        gotoPump(Number(e.key))
+        disarm()
+        return
+      }
+
+      if (hotkeyArmed && e.key === 'Escape') {
+        e.preventDefault()
+        disarm()
+        return
+      }
+    }
+
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('keydown', onKey)
+      if (armTimer.current) window.clearTimeout(armTimer.current)
+    }
+  }, [hotkeyArmed, chooserOpen])
+
+  const CHOICES = [
+    { k: '1', label: 'North Diesel', pump: 1 },
+    { k: '2', label: 'North Regular', pump: 2 },
+    { k: '3', label: 'South Diesel', pump: 3 },
+    { k: '4', label: 'North Regular', pump: 4 },
+  ]
+
+  return (
+    <div className="p-4 space-y-3 overflow-y-auto relative" style={{ paddingBottom: NAV_HEIGHT }}>
+      <div className="mb-2 flex items-center gap-2 text-sm text-neutral-600">
+        <span className="mr-1">Navigate to editor:</span>
+        <Keycap label={9} />
+        <span>then</span>
+        <Keycap label={1} />
+        <span>to</span>
+        <Keycap label={4} />
+        <span>or</span>
+        <Keycap label={0} />
+        <span>to open chooser</span>
+      </div>
+
+      {rows.map((r, idx) => {
+        const rowKey = keyOf(r)
+        const baseAnalog = baseAnalogByKey[rowKey] ?? 0
+        const pumpNumber = idx + 1
         return (
-          <div key={keyOf(r)} className={`rounded-xl border p-4 shadow-sm flex flex-col gap-3 ${borderColor}`}>
-            <div className="font-medium text-base break-words">
-              {r.product_label} <span className="opacity-60 text-xs">({r.dispenser} · {r.nozzle})</span>
+          <div key={rowKey} className="rounded-xl border p-4 shadow-sm border-neutral-200">
+            <div className="mb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-xs uppercase tracking-wide text-neutral-500">Pump</span>
+                <span className="text-base font-semibold">{pumpNumber}</span>
+                <span className="text-neutral-400">•</span>
+                <span className="text-sm font-medium">{r.product_label}</span>
+              </div>
+              <div className="flex items-center gap-1 text-xs text-neutral-600">
+                <span className="mr-1">Hotkey</span>
+                <Keycap label={9} />
+                <span>+</span>
+                <Keycap label={pumpNumber} />
+              </div>
             </div>
 
-            {/* --- Summary: min 3 / max 4 per row --- */}
-            {!isEditing && (
-              <>
-                <div className="grid grid-cols-3 md:grid-cols-4 gap-2 text-sm">
-                  {[
-                    { label: 'Beginning', qty: r.beginning_register },
-                    { label: 'Sold (PO+Cash)', qty: sold },
-                    { label: 'Ending', qty: r.ending_register },
-                  ].map(({ label, qty }) => (
-                    <div key={label} className="rounded-lg bg-muted p-2 text-center flex flex-col justify-center">
-                      <div className="font-semibold">{qty.toLocaleString()} {r.unit}</div>
-                      <div className="text-xs opacity-70">{currency(qty * r.price)}</div>
-                      <div className="text-[10px] opacity-60">{label}</div>
-                    </div>
-                  ))}
-                </div>
-
-                {/* --- Details: strictly in schema order; min 3 / max 4 per row --- */}
-                <div className="grid grid-cols-3 md:grid-cols-4 gap-2 text-xs">
-                  <div className="rounded-lg bg-muted p-2 text-center">
-                    <div className="font-semibold">{r.dispenser}</div>
-                    <div className="opacity-70">dispenser</div>
-                  </div>
-                  <div className="rounded-lg bg-muted p-2 text-center">
-                    <div className="font-semibold">{r.nozzle}</div>
-                    <div className="opacity-70">nozzle</div>
-                  </div>
-                  <div className="rounded-lg bg-muted p-2 text-center">
-                    <div className="font-semibold">{r.date}</div>
-                    <div className="opacity-70">date</div>
-                  </div>
-                  <div className="rounded-lg bg-muted p-2 text-center">
-                    <div className="font-semibold">{r.beginning_register}</div>
-                    <div className="opacity-70">beginning_register</div>
-                  </div>
-                  <div className="rounded-lg bg-muted p-2 text-center">
-                    <div className="font-semibold">{r.ending_register}</div>
-                    <div className="opacity-70">ending_register</div>
-                  </div>
-                  <div className="rounded-lg bg-muted p-2 text-center">
-                    <div className="font-semibold">{r.analog_register}</div>
-                    <div className="opacity-70">analog_register</div>
-                  </div>
-                  <div className="rounded-lg bg-muted p-2 text-center">
-                    <div className="font-semibold">{r.calibration}</div>
-                    <div className="opacity-70">calibration</div>
-                  </div>
-                  <div className="rounded-lg bg-muted p-2 text-center">
-                    <div className="font-semibold">{r.price.toFixed(2)}</div>
-                    <div className="opacity-70">price</div>
-                  </div>
-                  <div className="rounded-lg bg-muted p-2 text-center">
-                    <div className="font-semibold">{r.po}</div>
-                    <div className="opacity-70">po</div>
-                  </div>
-                  <div className="rounded-lg bg-muted p-2 text-center">
-                    <div className="font-semibold">{r.cash}</div>
-                    <div className="opacity-70">cash</div>
-                  </div>
-                </div>
-
-                <Button onClick={() => startEdit(r)} variant="secondary" className="w-full flex items-center gap-2">
-                  <Pencil className="w-4 h-4" />
-                  Change
-                </Button>
-              </>
-            )}
-
-            {/* --- Edit form: inputs appear in schema order; min 3 / max 4 per row --- */}
-            {isEditing && (
-              <>
-                <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-                  {/* dispenser (read-only identity) */}
-                  <div className="space-y-1">
-                    <div className="text-xs opacity-70">dispenser</div>
-                    <Input value={r.dispenser} disabled className="text-center" />
-                  </div>
-
-                  {/* nozzle (read-only identity) */}
-                  <div className="space-y-1">
-                    <div className="text-xs opacity-70">nozzle</div>
-                    <Input value={r.nozzle} disabled className="text-center" />
-                  </div>
-
-                  {/* date */}
-                  <div className="space-y-1">
-                    <div className="text-xs opacity-70">date</div>
-                    <Input
-                      type="date"
-                      value={(draft.date as string) ?? r.date}
-                      onChange={(e) => setDraft(d => ({ ...d, date: e.target.value }))}
-                      className="text-center"
-                    />
-                  </div>
-
-                  {/* beginning_register */}
-                  <div className="space-y-1">
-                    <div className="text-xs opacity-70">beginning_register ({r.unit})</div>
-                    <Input
-                      type="number"
-                      value={draft.beginning_register ?? r.beginning_register}
-                      onChange={(e) => setDraft(d => ({ ...d, beginning_register: toNum(e.target.value) }))}
-                      className="text-center"
-                    />
-                  </div>
-
-                  {/* ending_register (computed; read-only in UI) */}
-                  <div className="space-y-1">
-                    <div className="text-xs opacity-70">ending_register ({r.unit})</div>
-                    <Input value={r.ending_register} disabled className="text-center" />
-                  </div>
-
-                  {/* analog_register (computed; read-only in UI) */}
-                  <div className="space-y-1">
-                    <div className="text-xs opacity-70">analog_register</div>
-                    <Input value={r.analog_register} disabled className="text-center" />
-                  </div>
-
-                  {/* calibration */}
-                  <div className="space-y-1">
-                    <div className="text-xs opacity-70">calibration ({r.unit})</div>
-                    <Input
-                      type="number"
-                      value={draft.calibration ?? r.calibration}
-                      onChange={(e) => setDraft(d => ({ ...d, calibration: toNum(e.target.value) }))}
-                      className="text-center"
-                    />
-                  </div>
-
-                  {/* price */}
-                  <div className="space-y-1">
-                    <div className="text-xs opacity-70">price (₱/L)</div>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={draft.price ?? r.price}
-                      onChange={(e) => setDraft(d => ({ ...d, price: toNum(e.target.value) }))}
-                      className="text-center"
-                    />
-                  </div>
-
-                  {/* po */}
-                  <div className="space-y-1">
-                    <div className="text-xs opacity-70">po ({r.unit})</div>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={draft.po ?? r.po}
-                      onChange={(e) => setDraft(d => ({ ...d, po: toNum(e.target.value) }))}
-                      className="text-center"
-                    />
-                  </div>
-
-                  {/* cash */}
-                  <div className="space-y-1">
-                    <div className="text-xs opacity-70">cash ({r.unit})</div>
-                    <Input
-                      type="number"
-                      min="0"
-                      value={draft.cash ?? r.cash}
-                      onChange={(e) => setDraft(d => ({ ...d, cash: toNum(e.target.value) }))}
-                      className="text-center"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <Button onClick={saveEdit} className="flex-1">Save</Button>
-                  <Button onClick={cancelEdit} variant="secondary" className="flex-1">Cancel</Button>
-                </div>
-              </>
-            )}
+            <RowCard
+              row={r}
+              isEditing={false}
+              baseAnalog={baseAnalog}
+              onStartEdit={() => gotoPump(pumpNumber)}
+              onCancelEdit={() => {}}
+              onSaveEdit={(_: Partial<UpdateRecord>) => {}}
+            />
           </div>
         )
       })}
+
+      {hotkeyArmed && (
+        <div className="fixed bottom-[72px] right-4 z-50 rounded-lg border bg-white/90 backdrop-blur px-3 py-2 shadow-md">
+          <div className="flex items-center gap-2 text-sm text-neutral-800">
+            <span>Go to editor</span>
+            <Keycap label={1} />
+            <Keycap label={2} />
+            <Keycap label={3} />
+            <Keycap label={4} />
+            <span className="text-neutral-500">or</span>
+            <Keycap label="Esc" />
+          </div>
+        </div>
+      )}
+
+      {chooserOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setChooserOpen(false)} />
+          <div role="dialog" aria-modal="true" className="relative z-10 w-full max-w-sm mx-4 rounded-xl border bg-white p-4 shadow-xl">
+            <div className="mb-3 text-sm font-medium text-neutral-700">Select Pump</div>
+            <div className="grid grid-cols-1 gap-2">
+              {CHOICES.map(({ k, label, pump }) => (
+                <button
+                  key={k}
+                  onClick={() => {
+                    gotoPump(pump)
+                    setChooserOpen(false)
+                  }}
+                  className="flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm hover:bg-neutral-50 active:bg-neutral-100"
+                >
+                  <div className="flex items-center gap-2">
+                    <Keycap label={k} />
+                    <span>{label}</span>
+                  </div>
+                  <span className="text-xs text-neutral-500">Pump {pump}</span>
+                </button>
+              ))}
+            </div>
+            <div className="mt-3 flex items-center justify-between text-xs text-neutral-500">
+              <div className="flex items-center gap-1">
+                <span>Press</span>
+                <Keycap label={1} />
+                <Keycap label={2} />
+                <Keycap label={3} />
+                <Keycap label={4} />
+              </div>
+              <div className="flex items-center gap-1">
+                <span>Close</span>
+                <Keycap label="0" />
+                <span>or</span>
+                <Keycap label="Esc" />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
