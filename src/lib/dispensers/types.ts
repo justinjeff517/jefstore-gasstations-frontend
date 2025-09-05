@@ -1,5 +1,5 @@
-export type NozzleSpec = { id: 'nozzle_1' | 'nozzle_2'; product: 'Diesel' | 'Regular' }
-export type DispenserSpec = { dispenser_id: 'dispenser_1' | 'dispenser_2'; location: 'East' | 'West'; nozzles: NozzleSpec[] }
+export type NozzleSpec = { id: 'regular' | 'diesel'; product: 'Diesel' | 'Regular' }
+export type DispenserSpec = { dispenser_id: 'dispenser_east' | 'dispenser_west'; location: 'East' | 'West'; nozzles: NozzleSpec[] }
 
 export type UpdateRecord = {
   dispenser: string

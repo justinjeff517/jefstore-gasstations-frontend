@@ -8,10 +8,25 @@ import type { DispenserSpec, Row, UpdateRecord } from '@/lib/dispensers/types'
 import { keyOf, toNum } from '@/lib/dispensers/utils'
 
 const today = new Date().toISOString().slice(0, 10)
+const STORAGE_KEY = 'dispensers_rows_v2'
 
 const DISPENSERS: DispenserSpec[] = [
-  { dispenser_id: 'dispenser_1', location: 'East', nozzles: [{ id: 'nozzle_1', product: 'Diesel' }, { id: 'nozzle_2', product: 'Regular' }] },
-  { dispenser_id: 'dispenser_2', location: 'West',  nozzles: [{ id: 'nozzle_1', product: 'Diesel' }, { id: 'nozzle_2', product: 'Regular' }] },
+  {
+    dispenser_id: 'dispenser_east',
+    location: 'East',
+    nozzles: [
+      { id: 'regular', product: 'Regular' },
+      { id: 'diesel', product: 'Diesel' },
+    ],
+  },
+  {
+    dispenser_id: 'dispenser_west',
+    location: 'West',
+    nozzles: [
+      { id: 'regular', product: 'Regular' },
+      { id: 'diesel', product: 'Diesel' },
+    ],
+  },
 ]
 
 const baseAnalogByKey: Record<string, number> = Object.fromEntries(
@@ -42,7 +57,7 @@ const initialRows: Row[] = DISPENSERS.flatMap(d =>
       price,
       po,
       cash,
-      product_label: `${dispenser.toUpperCase().replace('_', ' ')} — ${n.product}`,
+      product_label: `${d.location} — ${n.product}`,
       unit: 'L',
       submitted: true,
     }
@@ -57,7 +72,7 @@ export default function PumpEditPage() {
 
   const [rows, setRows] = useState<Row[]>(() => {
     try {
-      const raw = typeof window !== 'undefined' ? sessionStorage.getItem('dispensers_rows') : null
+      const raw = typeof window !== 'undefined' ? sessionStorage.getItem(STORAGE_KEY) : null
       if (raw) return JSON.parse(raw) as Row[]
     } catch {}
     return initialRows
@@ -99,7 +114,7 @@ export default function PumpEditPage() {
       }
     })
     setRows(updated)
-    try { sessionStorage.setItem('dispensers_rows', JSON.stringify(updated)) } catch {}
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated)) } catch {}
     router.replace('/dispensers')
   }
 

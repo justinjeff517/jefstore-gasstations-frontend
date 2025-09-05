@@ -1,17 +1,31 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { RowCard } from '@/components/dispensers/RowCard'
 import { Keycap } from '@/components/Keycap'
 import type { DispenserSpec, Row, UpdateRecord } from '@/lib/dispensers/types'
-import { keyOf, toNum } from '@/lib/dispensers/utils'
+import { keyOf } from '@/lib/dispensers/utils'
 
 const today = new Date().toISOString().slice(0, 10)
 
 const DISPENSERS: DispenserSpec[] = [
-  { dispenser_id: 'dispenser_1', location: 'East', nozzles: [{ id: 'nozzle_1', product: 'Diesel' }, { id: 'nozzle_2', product: 'Regular' }] },
-  { dispenser_id: 'dispenser_2', location: 'West', nozzles: [{ id: 'nozzle_1', product: 'Diesel' }, { id: 'nozzle_2', product: 'Regular' }] },
+  {
+    dispenser_id: 'dispenser_east',
+    location: 'East',
+    nozzles: [
+      { id: 'regular', product: 'Regular' },
+      { id: 'diesel', product: 'Diesel' },
+    ],
+  },
+  {
+    dispenser_id: 'dispenser_west',
+    location: 'West',
+    nozzles: [
+      { id: 'regular', product: 'Regular' },
+      { id: 'diesel', product: 'Diesel' },
+    ],
+  },
 ]
 
 const baseAnalogByKey: Record<string, number> = Object.fromEntries(
@@ -42,7 +56,7 @@ const initialRows: Row[] = DISPENSERS.flatMap(d =>
       price,
       po,
       cash,
-      product_label: `${dispenser.toUpperCase().replace('_', ' ')} — ${n.product}`,
+      product_label: `${d.location} — ${n.product}`,
       unit: 'L',
       submitted: true,
     }
@@ -52,21 +66,13 @@ const initialRows: Row[] = DISPENSERS.flatMap(d =>
 export default function Page() {
   const router = useRouter()
   const [rows] = useState<Row[]>(initialRows)
-  const [hotkeyArmed, setHotkeyArmed] = useState(false)
   const [chooserOpen, setChooserOpen] = useState(false)
-  const armTimer = useRef<number | null>(null)
+  const [loadingPump, setLoadingPump] = useState<number | null>(null)
   const NAV_HEIGHT = 64
-
-  const disarm = () => {
-    setHotkeyArmed(false)
-    if (armTimer.current) {
-      window.clearTimeout(armTimer.current)
-      armTimer.current = null
-    }
-  }
 
   const gotoPump = (pumpNumber: number) => {
     if (pumpNumber < 1 || pumpNumber > 4) return
+    setLoadingPump(pumpNumber)
     router.push(`/dispensers/${pumpNumber}`)
   }
 
@@ -82,10 +88,9 @@ export default function Page() {
       if (e.repeat) return
       if (isTyping(e.target)) return
 
-      if (e.key === '0') {
+      if (e.key === '9' || e.key === '0') {
         e.preventDefault()
         setChooserOpen(true)
-        disarm()
         return
       }
 
@@ -93,7 +98,6 @@ export default function Page() {
         if (['1', '2', '3', '4'].includes(e.key)) {
           e.preventDefault()
           gotoPump(Number(e.key))
-          setChooserOpen(false)
           return
         }
         if (e.key === 'Escape' || e.key === '0') {
@@ -101,56 +105,25 @@ export default function Page() {
           setChooserOpen(false)
           return
         }
-        return
-      }
-
-      if (!hotkeyArmed && e.key === '9') {
-        setHotkeyArmed(true)
-        if (armTimer.current) window.clearTimeout(armTimer.current)
-        armTimer.current = window.setTimeout(() => setHotkeyArmed(false), 3000) as unknown as number
-        return
-      }
-
-      if (hotkeyArmed && ['1', '2', '3', '4'].includes(e.key)) {
-        e.preventDefault()
-        gotoPump(Number(e.key))
-        disarm()
-        return
-      }
-
-      if (hotkeyArmed && e.key === 'Escape') {
-        e.preventDefault()
-        disarm()
-        return
       }
     }
 
     document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('keydown', onKey)
-      if (armTimer.current) window.clearTimeout(armTimer.current)
-    }
-  }, [hotkeyArmed, chooserOpen])
+    return () => document.removeEventListener('keydown', onKey)
+  }, [chooserOpen])
 
   const CHOICES = [
-    { k: '1', label: 'North Diesel', pump: 1 },
-    { k: '2', label: 'North Regular', pump: 2 },
-    { k: '3', label: 'South Diesel', pump: 3 },
-    { k: '4', label: 'North Regular', pump: 4 },
+    { k: '1', label: 'East Regular', pump: 1 },
+    { k: '2', label: 'East Diesel', pump: 2 },
+    { k: '3', label: 'West Regular', pump: 3 },
+    { k: '4', label: 'West Diesel', pump: 4 },
   ]
 
   return (
     <div className="p-4 space-y-3 overflow-y-auto relative" style={{ paddingBottom: NAV_HEIGHT }}>
       <div className="mb-2 flex items-center gap-2 text-sm text-neutral-600">
-        <span className="mr-1">Navigate to editor:</span>
+        <span className="mr-1">Open chooser:</span>
         <Keycap label={9} />
-        <span>then</span>
-        <Keycap label={1} />
-        <span>to</span>
-        <Keycap label={4} />
-        <span>or</span>
-        <Keycap label={0} />
-        <span>to open chooser</span>
       </div>
 
       {rows.map((r, idx) => {
@@ -169,7 +142,7 @@ export default function Page() {
               <div className="flex items-center gap-1 text-xs text-neutral-600">
                 <span className="mr-1">Hotkey</span>
                 <Keycap label={9} />
-                <span>+</span>
+                <span>→</span>
                 <Keycap label={pumpNumber} />
               </div>
             </div>
@@ -186,42 +159,34 @@ export default function Page() {
         )
       })}
 
-      {hotkeyArmed && (
-        <div className="fixed bottom-[72px] right-4 z-50 rounded-lg border bg-white/90 backdrop-blur px-3 py-2 shadow-md">
-          <div className="flex items-center gap-2 text-sm text-neutral-800">
-            <span>Go to editor</span>
-            <Keycap label={1} />
-            <Keycap label={2} />
-            <Keycap label={3} />
-            <Keycap label={4} />
-            <span className="text-neutral-500">or</span>
-            <Keycap label="Esc" />
-          </div>
-        </div>
-      )}
-
       {chooserOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/40" onClick={() => setChooserOpen(false)} />
           <div role="dialog" aria-modal="true" className="relative z-10 w-full max-w-sm mx-4 rounded-xl border bg-white p-4 shadow-xl">
             <div className="mb-3 text-sm font-medium text-neutral-700">Select Pump</div>
             <div className="grid grid-cols-1 gap-2">
-              {CHOICES.map(({ k, label, pump }) => (
-                <button
-                  key={k}
-                  onClick={() => {
-                    gotoPump(pump)
-                    setChooserOpen(false)
-                  }}
-                  className="flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm hover:bg-neutral-50 active:bg-neutral-100"
-                >
-                  <div className="flex items-center gap-2">
-                    <Keycap label={k} />
-                    <span>{label}</span>
-                  </div>
-                  <span className="text-xs text-neutral-500">Pump {pump}</span>
-                </button>
-              ))}
+              {CHOICES.map(({ k, label, pump }) => {
+                const isLoading = loadingPump === pump
+                return (
+                  <button
+                    key={k}
+                    onClick={() => gotoPump(pump)}
+                    disabled={!!loadingPump}
+                    className={`flex items-center justify-between rounded-lg border px-3 py-2 text-left text-sm hover:bg-neutral-50 active:bg-neutral-100 ${
+                      loadingPump ? 'opacity-60 pointer-events-none' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Keycap label={k} />
+                      <span>{label}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isLoading && <span className="inline-block w-4 h-4 rounded-full border-2 border-neutral-300 border-t-neutral-700 animate-spin" />}
+                      <span className="text-xs text-neutral-500">Pump {pump}</span>
+                    </div>
+                  </button>
+                )
+              })}
             </div>
             <div className="mt-3 flex items-center justify-between text-xs text-neutral-500">
               <div className="flex items-center gap-1">

@@ -15,49 +15,89 @@ type PurchaseOrder = {
   date: string;
 };
 
-type NozzleSpec = { id: "nozzle_1" | "nozzle_2"; product: "Diesel" | "Regular" };
+type NozzleSpec = { id: "regular" | "diesel"; product: "Regular" | "Diesel" };
 type DispenserSpec = {
-  dispenser_id: "dispenser_1" | "dispenser_2";
+  dispenser_id: "dispenser_east" | "dispenser_west";
   location: "East" | "West";
   nozzles: NozzleSpec[];
 };
 
 const DISPENSERS: DispenserSpec[] = [
-  { dispenser_id: "dispenser_1", location: "East", nozzles: [{ id: "nozzle_1", product: "Diesel" }, { id: "nozzle_2", product: "Regular" }] },
-  { dispenser_id: "dispenser_2", location: "West", nozzles: [{ id: "nozzle_1", product: "Diesel" }, { id: "nozzle_2", product: "Regular" }] },
+  {
+    dispenser_id: "dispenser_east",
+    location: "East",
+    nozzles: [
+      { id: "regular", product: "Regular" },
+      { id: "diesel", product: "Diesel" },
+    ],
+  },
+  {
+    dispenser_id: "dispenser_west",
+    location: "West",
+    nozzles: [
+      { id: "regular", product: "Regular" },
+      { id: "diesel", product: "Diesel" },
+    ],
+  },
 ];
 
 const STORAGE_KEY = "jef-pos.purchase_orders";
+
+function localDateISO(): string {
+  const d = new Date();
+  const off = d.getTimezoneOffset();
+  const local = new Date(d.getTime() - off * 60_000);
+  return local.toISOString().slice(0, 10);
+}
 
 export default function PurchaseOrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [dispModalOpen, setDispModalOpen] = useState(false);
 
-  const pumpOptions = useMemo(
-    () => [
-      { key: "1", label: "East — Diesel", path: `/purchase-orders/dispenser_1?nozzle=nozzle_1` },
-      { key: "2", label: "East — Regular", path: `/purchase-orders/dispenser_1?nozzle=nozzle_2` },
-      { key: "3", label: "West — Diesel", path: `/purchase-orders/dispenser_2?nozzle=nozzle_1` },
-      { key: "4", label: "West — Regular", path: `/purchase-orders/dispenser_2?nozzle=nozzle_2` },
-    ],
-    []
-  );
+  const pumpOptions = useMemo(() => {
+    // Flatten DISPENSERS → options, then assign numeric hotkeys 1..n (max 9)
+    const flat = DISPENSERS.flatMap((d) =>
+      d.nozzles.map((n) => ({
+        label: `${d.location} — ${n.product}`,
+        path: `/purchase-orders/${d.dispenser_id}?nozzle=${n.id}`,
+      }))
+    );
+    return flat.slice(0, 9).map((o, i) => ({ key: String(i + 1), ...o }));
+  }, []);
 
-  const todayIso = useMemo(() => new Date().toISOString().slice(0, 10), []);
+  const todayIso = useMemo(localDateISO, []);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        setOrders(JSON.parse(raw));
-      } else {
-        const sample: PurchaseOrder[] = [
-          { id: "PO-SAMPLE-1", po_number: "PO-2025-0001", plate_number: "ABC-1234", route: "North Loop", driver: "Juan D.", date: todayIso },
-        ];
+      const sample: PurchaseOrder[] = [
+        { id: "PO-SAMPLE-1", po_number: "PO-2025-0001", plate_number: "ABC-1234", route: "North Loop", driver: "Juan D.", date: todayIso },
+        { id: "PO-SAMPLE-2", po_number: "PO-2025-0002", plate_number: "KLM-5678", route: "South Loop", driver: "Maria G.", date: "2025-09-04" },
+        { id: "PO-SAMPLE-3", po_number: "PO-2025-0003", plate_number: "XYZ-9012", route: "East Route", driver: "Pedro L.", date: "2025-09-03" },
+        { id: "PO-SAMPLE-4", po_number: "PO-2025-0004", plate_number: "TUV-3456", route: "West Route", driver: "Ana R.", date: "2025-09-02" },
+      ];
+
+      if (!raw) {
         setOrders(sample);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sample));
+        return;
       }
-    } catch {}
+
+      const parsed: unknown = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setOrders(parsed as PurchaseOrder[]);
+      } else {
+        setOrders(sample);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sample));
+      }
+    } catch {
+      const fallback: PurchaseOrder[] = [
+        { id: "PO-SAMPLE-ERR", po_number: "PO-2025-0099", plate_number: "ERR-000", route: "Recovery", driver: "System", date: todayIso },
+      ];
+      setOrders(fallback);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(fallback));
+    }
   }, [todayIso]);
 
   useEffect(() => {
@@ -116,7 +156,7 @@ export default function PurchaseOrdersPage() {
               </span>
               <span>•</span>
               <span className="flex items-center gap-1">
-                <Keycap label={1} /> <Keycap label={2} /> <Keycap label={3} /> <Keycap label={4} /> <span>Go to Pump</span>
+                <Keycap label={1} />–<Keycap label={pumpOptions.length} /> <span>Go to Pump</span>
               </span>
               <span>•</span>
               <span className="flex items-center gap-1">
@@ -131,7 +171,10 @@ export default function PurchaseOrdersPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              Select Pump <span className="text-xs text-muted-foreground">(press <Keycap label={1} />–<Keycap label={4} />)</span>
+              Select Pump{" "}
+              <span className="text-xs text-muted-foreground">
+                (press <Keycap label={1} />–<Keycap label={pumpOptions.length} />)
+              </span>
             </DialogTitle>
           </DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -154,7 +197,9 @@ export default function PurchaseOrdersPage() {
               </button>
             ))}
           </div>
-          <div className="text-xs text-muted-foreground mt-2">Press <Keycap label="Esc" /> to cancel</div>
+          <div className="text-xs text-muted-foreground mt-2">
+            Press <Keycap label="Esc" /> to cancel
+          </div>
         </DialogContent>
       </Dialog>
 

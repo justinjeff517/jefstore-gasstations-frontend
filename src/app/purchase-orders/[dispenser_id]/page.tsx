@@ -1,85 +1,90 @@
 "use client";
 
-import { useMemo } from "react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
+import { useState } from "react";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
-import { Keycap } from "@/components/Keycap";
 
-type NozzleSpec = { id: "nozzle_1" | "nozzle_2"; product: "Diesel" | "Regular" };
-type DispenserSpec = {
-  dispenser_id: "dispenser_1" | "dispenser_2";
-  location: "East" | "West";
-  nozzles: NozzleSpec[];
+type POForm = {
+  id: string;
+  fuel_dispenser: string;
+  product: string;
+  po_number: string;
+  plate_number: string;
+  route: string;
+  driver: string;
 };
 
-const DISPENSERS: DispenserSpec[] = [
-  { dispenser_id: "dispenser_1", location: "East", nozzles: [{ id: "nozzle_1", product: "Diesel" }, { id: "nozzle_2", product: "Regular" }] },
-  { dispenser_id: "dispenser_2", location: "West", nozzles: [{ id: "nozzle_1", product: "Diesel" }, { id: "nozzle_2", product: "Regular" }] },
-];
-
 export default function DispenserPurchaseOrdersPage() {
-  const router = useRouter();
   const params = useParams();
   const searchParams = useSearchParams();
 
-  const dispenserId = String(params.dispenser_id) as DispenserSpec["dispenser_id"] | string;
-  const nozzleParam = (searchParams.get("nozzle") || "nozzle_1") as NozzleSpec["id"];
+  const dispenserId = String(params.dispenser_id ?? "");
+  const nozzle = String(searchParams.get("nozzle") ?? "");
 
-  const selected = useMemo(() => {
-    const d = DISPENSERS.find(x => x.dispenser_id === dispenserId as any);
-    const n = d?.nozzles.find(z => z.id === nozzleParam);
-    return { d, n };
-  }, [dispenserId, nozzleParam]);
+  const [form, setForm] = useState<POForm>({
+    id: crypto.randomUUID(),
+    fuel_dispenser: dispenserId,
+    product: nozzle || "",
+    po_number: "",
+    plate_number: "",
+    route: "",
+    driver: "",
+  });
 
-  const title = selected.d && selected.n ? `${selected.d.location} — ${selected.n.product}` : "Unknown Pump";
+  const set = (k: keyof POForm, v: string) => setForm(prev => ({ ...prev, [k]: v }));
 
-  function setNozzle(id: NozzleSpec["id"]) {
-    router.replace(`/purchase-orders/${dispenserId}?nozzle=${id}`);
-  }
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    console.log("Submit PO:", form);
+  };
 
   return (
-    <>
-      <header className="fixed inset-x-0 top-0 z-40 border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="mx-auto max-w-2xl px-4">
-          <div className="h-12 flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => router.push("/purchase-orders")}>Back</Button>
-            <div className="text-sm font-semibold truncate">{title}</div>
-            <div className="ml-auto text-[11px] text-muted-foreground flex items-center gap-2">
-              <span className="hidden sm:inline">Nozzle:</span>
-              <Button size="xs" variant={nozzleParam === "nozzle_1" ? "default" : "outline"} onClick={() => setNozzle("nozzle_1")}>Nozzle 1</Button>
-              <Button size="xs" variant={nozzleParam === "nozzle_2" ? "default" : "outline"} onClick={() => setNozzle("nozzle_2")}>Nozzle 2</Button>
-            </div>
-          </div>
+    <main className="p-4 max-w-md mx-auto">
+      <h2 className="text-lg font-semibold mb-3">Dispenser {dispenserId}</h2>
+      <form onSubmit={onSubmit} className="space-y-3">
+        <div className="grid gap-1">
+          <Label htmlFor="po_number">PO Number</Label>
+          <Input id="po_number" value={form.po_number} onChange={e => set("po_number", e.target.value)} placeholder="e.g. PO-2025-001" required />
         </div>
-      </header>
 
-      <main className="mx-auto max-w-2xl px-4 pt-14 pb-4 space-y-3">
-        {!selected.d ? (
-          <p className="text-sm text-destructive">Invalid dispenser: {dispenserId}</p>
-        ) : (
-          <section className="space-y-3">
-            <article className="rounded-lg border p-3">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Selected</div>
-              <div className="text-sm font-medium">{title}</div>
-              <div className="text-[11px] text-muted-foreground">id: {selected.d.dispenser_id} · {nozzleParam.replace("nozzle_", "Nozzle ")}</div>
-            </article>
+        <div className="grid gap-1">
+          <Label htmlFor="plate_number">Plate Number</Label>
+          <Input id="plate_number" value={form.plate_number} onChange={e => set("plate_number", e.target.value)} placeholder="e.g. ABC-1234" />
+        </div>
 
-            <article className="rounded-lg border p-3">
-              <div className="text-xs uppercase tracking-wide text-muted-foreground">Actions</div>
-              <div className="mt-2 grid grid-cols-2 gap-2">
-                <Button onClick={() => router.push(`/purchase-orders`)}>View All POs</Button>
-                <Button variant="outline" onClick={() => router.push(`/purchase-orders/${dispenserId}?nozzle=${nozzleParam}`)}>
-                  Refresh
-                </Button>
-              </div>
-              <div className="mt-3 text-xs text-muted-foreground flex items-center gap-2">
-                <Keycap label="URL" />
-                <span>/purchase-orders/{dispenserId}?nozzle={nozzleParam}</span>
-              </div>
-            </article>
-          </section>
-        )}
-      </main>
-    </>
+        <div className="grid gap-1">
+          <Label htmlFor="route">Route</Label>
+          <Input id="route" value={form.route} onChange={e => set("route", e.target.value)} placeholder="e.g. Tagbilaran → Loboc" />
+        </div>
+
+        <div className="grid gap-1">
+          <Label htmlFor="driver">Driver</Label>
+          <Input id="driver" value={form.driver} onChange={e => set("driver", e.target.value)} placeholder="Driver name" />
+        </div>
+
+        <div className="grid gap-1">
+          <Label>Product</Label>
+          <Select value={form.product} onValueChange={v => set("product", v)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select product" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Diesel">Diesel</SelectItem>
+              <SelectItem value="Regular">Regular</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="grid gap-1">
+          <Label htmlFor="fuel_dispenser">Fuel Dispenser</Label>
+          <Input id="fuel_dispenser" value={form.fuel_dispenser} onChange={e => set("fuel_dispenser", e.target.value)} />
+        </div>
+
+        <Button type="submit" className="w-full">Save Purchase Order</Button>
+      </form>
+    </main>
   );
 }
