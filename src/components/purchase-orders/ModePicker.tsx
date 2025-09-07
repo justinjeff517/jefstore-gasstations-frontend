@@ -6,12 +6,14 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Keycap } from "@/components/Keycap";
 
-type Props = { dispenserId: string; baseNozzle: string };
+type Props = { dispenserId: string };
+type Mode = "auto" | "manual";
 
-const hrefFor = (d: string, n: string, m: "auto" | "manual") =>
-  `/purchase-orders/${d}?nozzle=${n}/${m}`;
+const hrefFor = (d: string, n: string, m: Mode) =>
+  `/purchase-orders/${d}/${n}/${m}`;
 
-export default function ModePicker({ dispenserId, baseNozzle = "regular" }: Props) {
+export default function ModePicker({ dispenserId }: Props) {
+  const baseNozzle = "regular";
   const router = useRouter();
 
   const toAuto = useCallback(

@@ -1,54 +1,53 @@
 "use client";
 
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useId } from "react";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import PONumber from "@/components/purchase-orders/PONumber";
 import PlateNumber from "@/components/purchase-orders/PlateNumber";
 import RouteField from "@/components/purchase-orders/RouteField";
 import DriverField from "@/components/purchase-orders/DriverField";
-import ModePicker from "@/components/purchase-orders/ModePicker";
-import AutoScanWait from "@/components/purchase-orders/AutoScanWait";
+import QuantityField from "@/components/purchase-orders/QuantityField";
 
 type POForm = {
   id: string;
-  fuel_dispenser: string;
   product: string;
   po_number: string;
   plate_number: string;
   route: string;
   driver: string;
+  quantity_liters: string;
 };
 
-const REQUIRED: (keyof POForm)[] = ["fuel_dispenser", "product", "po_number", "plate_number", "route", "driver"];
+const REQUIRED: (keyof POForm)[] = [
+  "product",
+  "po_number",
+  "plate_number",
+  "route",
+  "driver",
+  "quantity_liters",
+];
 
-function parseNozzle(v: string | null): { base: string; mode: "auto" | "manual" | null } {
-  const raw = String(v ?? "").trim();
-  const [head, tail] = raw.split("/");
-  const base = head || "";
-  const mode = tail === "auto" || tail === "manual" ? (tail as "auto" | "manual") : null;
-  return { base, mode };
-}
-
-export default function DispenserPurchaseOrdersPage() {
+export default function DispenserManualPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const productLabelId = useId();
 
   const dispenserId = String(params.dispenser_id ?? "");
-  const { base: baseNozzle, mode } = useMemo(() => parseNozzle(searchParams.get("nozzle")), [searchParams]);
+  const nozzleParam = String(searchParams.get("nozzle") ?? "regular");
+  const productFromNozzle = useMemo(() => (nozzleParam.split("/")[0] || "regular"), [nozzleParam]);
 
   const [form, setForm] = useState<POForm>({
     id: crypto.randomUUID(),
-    fuel_dispenser: dispenserId,
-    product: baseNozzle || "",
+    product: productFromNozzle,
     po_number: "",
     plate_number: "",
     route: "",
     driver: "",
+    quantity_liters: "",
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof POForm, string>>>({});
@@ -73,15 +72,15 @@ export default function DispenserPurchaseOrdersPage() {
   useEffect(() => {
     setForm({
       id: crypto.randomUUID(),
-      fuel_dispenser: dispenserId,
-      product: baseNozzle || "",
+      product: productFromNozzle,
       po_number: "",
       plate_number: "",
       route: "",
       driver: "",
+      quantity_liters: "",
     });
     setErrors({});
-  }, [dispenserId, baseNozzle]);
+  }, [productFromNozzle, dispenserId]);
 
   const set = (k: keyof POForm, v: string) => {
     setForm(prev => ({ ...prev, [k]: v }));
@@ -101,27 +100,12 @@ export default function DispenserPurchaseOrdersPage() {
     const eMap = validate(form);
     setErrors(eMap);
     if (Object.keys(eMap).length) return;
-    console.log("Submit PO:", form);
+
+    sessionStorage.setItem("po.manual.pending", JSON.stringify({ ...form }));
+    router.push(
+      `/purchase-orders/${dispenserId}/manual/confirm?id=${encodeURIComponent(form.id)}`
+    );
   };
-
-  if (!baseNozzle || (mode !== "auto" && mode !== "manual")) {
-    return (
-      <main className="p-4 max-w-md mx-auto">
-        <h2 className="text-lg font-semibold mb-3">Dispenser {dispenserId}</h2>
-        <ModePicker dispenserId={dispenserId} baseNozzle={baseNozzle || "regular"} />
-      </main>
-    );
-  }
-
-  if (mode === "auto") {
-    const manualHref = `/purchase-orders/${dispenserId}?nozzle=${baseNozzle}/manual`;
-    const backHref = `/purchase-orders/${dispenserId}?nozzle=${baseNozzle}`;
-    return (
-      <main className="p-4 max-w-md mx-auto">
-        <AutoScanWait dispenserId={dispenserId} baseNozzle={baseNozzle} manualHref={manualHref} backHref={backHref} />
-      </main>
-    );
-  }
 
   return (
     <main className="p-4 max-w-md mx-auto">
@@ -143,10 +127,16 @@ export default function DispenserPurchaseOrdersPage() {
           <DriverField value={form.driver} onChange={v => set("driver", v)} />
           {errors.driver && <p className="mt-1 text-xs text-red-600" id="err-driver">{errors.driver}</p>}
         </div>
+
         <div className="grid gap-1">
-          <Label>Product</Label>
+          <Label htmlFor={productLabelId}>Product</Label>
           <Select value={form.product} onValueChange={v => set("product", v)}>
-            <SelectTrigger className={errors.product ? "border-red-500" : undefined} aria-invalid={!!errors.product} aria-describedby={errors.product ? "err-product" : undefined}>
+            <SelectTrigger
+              id={productLabelId}
+              className={errors.product ? "border-red-500" : undefined}
+              aria-invalid={!!errors.product}
+              aria-describedby={errors.product ? "err-product" : undefined}
+            >
               <SelectValue placeholder="Select product" />
             </SelectTrigger>
             <SelectContent>
@@ -156,12 +146,17 @@ export default function DispenserPurchaseOrdersPage() {
           </Select>
           {errors.product && <p className="mt-1 text-xs text-red-600" id="err-product">{errors.product}</p>}
         </div>
-        <div className="grid gap-1">
-          <Label htmlFor="fuel_dispenser">Fuel Dispenser</Label>
-          <Input id="fuel_dispenser" value={form.fuel_dispenser} readOnly className={errors.fuel_dispenser ? "border-red-500" : undefined} aria-invalid={!!errors.fuel_dispenser} aria-describedby={errors.fuel_dispenser ? "err-fd" : undefined} />
-          {errors.fuel_dispenser && <p className="mt-1 text-xs text-red-600" id="err-fd">{errors.fuel_dispenser}</p>}
-        </div>
-        <Button type="submit" className="w-full" disabled={!isComplete}>Save Purchase Order</Button>
+
+        <QuantityField
+          value={form.quantity_liters}
+          onChange={(v) => set("quantity_liters", v)}
+          required
+          error={errors.quantity_liters}
+        />
+
+        <Button type="submit" className="w-full" disabled={!isComplete}>
+          Save Purchase Order
+        </Button>
       </form>
     </main>
   );
