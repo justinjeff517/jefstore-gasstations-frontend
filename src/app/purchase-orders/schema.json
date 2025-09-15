@@ -1,9 +1,0 @@
-{
-    "id":"string",
-    "fuel_dispenser":"string",
-    "product":"string",
-    "po_number":"string",
-    "plate_number":"string",
-    "route":"string",
-    "driver":"string"
-}
