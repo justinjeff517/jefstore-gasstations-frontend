@@ -1,0 +1,13 @@
+{
+    "pump_name": "predefined",
+    "date": "predefined",
+    "product": "predefined",
+    "price": "predefined",
+    "beginning_liters": "predefined",
+    "calibration_liters": "manual input",
+    "epo_liters": "manual input",
+    "po_liters": "manual input",
+    "cash_liters": "manual input",
+    "ending_liters": "autocomputed",
+    "liter_meter": "autocomputed"
+}
