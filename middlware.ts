@@ -1,8 +1,8 @@
-// middleware.ts (root)
-export { auth as middleware } from "@/auth"
-
-export const config = {
-  matcher: [
-    "/((?!api/auth|_next|static|favicon.ico|robots.txt|sitemap.xml|login).*)",
-  ],
-}
+import withAuth from "next-auth/middleware"
+import authOptions from "@/app/api/auth/[...nextauth]/route"
+export default withAuth({
+  jwt: { decode: authOptions.jwt?.decode },
+  callbacks: {
+    authorized: ({ token }) => !!token,
+  },
+})

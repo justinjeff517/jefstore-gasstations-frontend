@@ -2,16 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Fuel, ShoppingBag, FileText, Settings, BottleWine, ClipboardList } from "lucide-react";
+import { useSession } from "next-auth/react";
+import { Fuel, ClipboardList, Settings } from "lucide-react";
 
 const items = [
   { href: "/dispensers", label: "Dispensers", Icon: Fuel },
-  { href: "/purchase-orders", label: "POs", Icon: ClipboardList }, // ← added
+  { href: "/purchase-orders", label: "POs", Icon: ClipboardList },
   { href: "/settings", label: "Settings", Icon: Settings },
 ];
 
 export default function MobileBottomNav() {
   const pathname = usePathname();
+  const { status } = useSession();
+
+  // Hide nav while unauthenticated (and during loading to prevent flicker)
+  if (status !== "authenticated") return null;
 
   return (
     <nav
@@ -22,7 +27,8 @@ export default function MobileBottomNav() {
       <div className="mx-auto max-w-md">
         <ul className="grid grid-cols-6">
           {items.map(({ href, label, Icon }) => {
-            const active = pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
+            const active =
+              pathname === href || (href !== "/" && pathname.startsWith(href + "/"));
             return (
               <li key={href} className="relative">
                 <Link

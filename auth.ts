@@ -1,21 +1,23 @@
-// auth.ts
-import NextAuth from "next-auth"
-import GitHub from "next-auth/providers/github"
+import type {
+  GetServerSidePropsContext,
+  NextApiRequest,
+  NextApiResponse,
+} from "next"
+import type { NextAuthOptions } from "next-auth"
+import { getServerSession } from "next-auth"
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [
-    GitHub({
-      clientId: process.env.AUTH_GITHUB_ID!,
-      clientSecret: process.env.AUTH_GITHUB_SECRET!,
-    }),
-  ],
-  pages: { signIn: "/login" },
-  // 🚦 Block all routes unless session exists (except /login)
-  callbacks: {
-    authorized({ auth, request }) {
-      const { pathname } = request.nextUrl
-      if (pathname.startsWith("/login")) return true
-      return !!auth?.user
-    },
-  },
-})
+// You'll need to import and pass this
+// to `NextAuth` in `app/api/auth/[...nextauth]/route.ts`
+export const config = {
+  providers: [], // rest of your config
+} satisfies NextAuthOptions
+
+// Use it in server contexts
+export function auth(
+  ...args:
+    | [GetServerSidePropsContext["req"], GetServerSidePropsContext["res"]]
+    | [NextApiRequest, NextApiResponse]
+    | []
+) {
+  return getServerSession(...args, config)
+}
