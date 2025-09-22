@@ -1,13 +1,11 @@
 'use client'
 
-import { useState, useMemo } from 'react'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { useState } from 'react'
 import { Switch } from '@/components/ui/switch'
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ChevronRight } from 'lucide-react'
+import { useSession, signOut } from 'next-auth/react'
 
 type SettingsModel = {
   orgName: string
@@ -21,6 +19,7 @@ type SettingsModel = {
 }
 
 export default function SettingsPage() {
+  const { data: session, status } = useSession()
   const [s, setS] = useState<SettingsModel>({
     orgName: 'JEF Gas Station',
     currency: 'PHP',
@@ -32,68 +31,95 @@ export default function SettingsPage() {
     autoBackup: true,
   })
 
-  const pricePreview = useMemo(() => {
-    const v = 68.5
-    const out = s.priceDecimals === 0 ? Math.round(v).toString() : v.toFixed(2)
-    const sym = s.currency === 'PHP' ? '₱' : '$'
-    return `${sym} ${out}`
-  }, [s.currency, s.priceDecimals])
+  if (status !== 'authenticated') return null
+
+  const email = session?.user?.email ?? '—'
+  const name =
+    session?.user?.name ?? (email.includes('@') ? email.split('@')[0] : 'You')
+  const img = session?.user?.image ?? ''
+  const initials =
+    name
+      .split(' ')
+      .map((s) => s[0])
+      .slice(0, 2)
+      .join('')
+      .toUpperCase() || 'YO'
+  const expiry = session?.expires
+    ? new Date(session.expires).toLocaleString('en-PH', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+      })
+    : '—'
 
   return (
     <main className="mx-auto max-w-md p-4 pb-24">
-      <h1 className="text-xl font-semibold tracking-tight mb-3">Settings</h1>
+      <h1 className="mb-3 text-xl font-semibold tracking-tight">Settings</h1>
 
-
-
-
-      {/* Notifications */}
-      <section aria-labelledby="notifications" className="rounded-xl border mt-4">
-        <h2 id="notifications" className="sr-only">Notifications</h2>
+      {/* Profile */}
+      <section aria-labelledby="profile" className="mt-2 rounded-xl border">
+        <h2 id="profile" className="sr-only">
+          Profile
+        </h2>
+        <div className="flex items-center gap-3 p-4">
+          <Avatar className="h-10 w-10">
+            <AvatarImage src={img} alt={name} />
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <div className="truncate text-sm font-medium">{name}</div>
+            <div className="truncate text-xs text-muted-foreground">{email}</div>
+          </div>
+        </div>
         <ul className="divide-y">
-          <li className="flex items-center justify-between gap-3 px-4 h-14">
-            <div className="min-w-0">
-              <div className="text-sm font-medium">Enable push</div>
-              <div className="text-xs text-muted-foreground">Sales, reports, and system alerts</div>
-            </div>
-            <Switch
-              checked={s.enableNotifications}
-              onCheckedChange={(v) => setS({ ...s, enableNotifications: v })}
-            />
-          </li>
-          <li className="flex items-center justify-between gap-3 px-4 h-14">
-            <div className="min-w-0">
-              <div className="text-sm font-medium">Low stock alerts</div>
-              <div className="text-xs text-muted-foreground">Notify when inventory is low</div>
-            </div>
-            <Switch
-              checked={s.lowStockAlerts}
-              onCheckedChange={(v) => setS({ ...s, lowStockAlerts: v })}
-            />
+          <Row label="Session expiry" value={expiry} />
+          <li className="px-4">
+            <Button
+              variant="destructive"
+              className="my-2 h-10 w-full"
+              onClick={() => signOut({ callbackUrl: '/login' })}
+            >
+              Sign out
+            </Button>
           </li>
         </ul>
       </section>
 
-
+      {/* Notifications */}
+      <section aria-labelledby="notifications" className="mt-4 rounded-xl border">
+        <h2 id="notifications" className="sr-only">
+          Notifications
+        </h2>
+        <ul className="divide-y">
+          <ToggleRow
+            title="Enable push"
+            subtitle="Sales, reports, and system alerts"
+            checked={s.enableNotifications}
+            onChange={(v) => setS({ ...s, enableNotifications: v })}
+          />
+          <ToggleRow
+            title="Low stock alerts"
+            subtitle="Notify when inventory is low"
+            checked={s.lowStockAlerts}
+            onChange={(v) => setS({ ...s, lowStockAlerts: v })}
+          />
+        </ul>
+      </section>
 
       {/* Data */}
-      <section aria-labelledby="data" className="rounded-xl border mt-4">
-        <h2 id="data" className="sr-only">Data</h2>
+      <section aria-labelledby="data" className="mt-4 rounded-xl border">
+        <h2 id="data" className="sr-only">
+          Data
+        </h2>
         <ul className="divide-y">
-          <li className="flex items-center justify-between gap-3 px-4 h-14">
-            <div className="min-w-0">
-              <div className="text-sm font-medium">Automatic backup</div>
-              <div className="text-xs text-muted-foreground">Save encrypted snapshots</div>
-            </div>
-            <Switch
-              checked={s.autoBackup}
-              onCheckedChange={(v) => setS({ ...s, autoBackup: v })}
-            />
-          </li>
-
-          {/* Example navigational row (to a subpage) */}
+          <ToggleRow
+            title="Automatic backup"
+            subtitle="Save encrypted snapshots"
+            checked={s.autoBackup}
+            onChange={(v) => setS({ ...s, autoBackup: v })}
+          />
           <li className="px-4">
             <button
-              className="w-full flex items-center justify-between h-12 text-left"
+              className="flex h-12 w-full items-center justify-between text-left"
               onClick={() => alert('Navigate to data export')}
               aria-label="Data export"
             >
@@ -104,5 +130,36 @@ export default function SettingsPage() {
         </ul>
       </section>
     </main>
+  )
+}
+
+function Row({ label, value }: { label: string; value: string }) {
+  return (
+    <li className="flex h-14 items-center justify-between gap-3 px-4">
+      <div className="text-sm text-muted-foreground">{label}</div>
+      <div className="max-w-[60%] truncate text-right text-sm font-medium">{value}</div>
+    </li>
+  )
+}
+
+function ToggleRow({
+  title,
+  subtitle,
+  checked,
+  onChange,
+}: {
+  title: string
+  subtitle: string
+  checked: boolean
+  onChange: (v: boolean) => void
+}) {
+  return (
+    <li className="flex h-14 items-center justify-between gap-3 px-4">
+      <div className="min-w-0">
+        <div className="text-sm font-medium">{title}</div>
+        <div className="text-xs text-muted-foreground">{subtitle}</div>
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} />
+    </li>
   )
 }

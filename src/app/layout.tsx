@@ -19,7 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-dvh bg-background text-foreground`}>
         <Providers>
           <main className="mx-auto max-w-md px-4 pb-24 pt-4 space-y-4">
-            <SessionInfo />
+   
             {children}
             <MobileBottomNav />
           </main>

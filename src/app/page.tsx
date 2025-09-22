@@ -1,18 +1,43 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { Card } from "@/components/ui/card"
-import { Fuel, Settings } from "lucide-react"
+import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { Card } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Fuel, Settings } from "lucide-react";
 
 const tiles = [
   { href: "/dispensers", label: "Dispensers", Icon: Fuel },
   { href: "/settings", label: "Settings", Icon: Settings },
-]
+];
 
 export default function HomePage() {
+  const { data: session, status } = useSession();
+  if (status !== "authenticated") return null;
+
+  const name =
+    session?.user?.name ??
+    session?.user?.email?.split("@")[0] ??
+    "User";
+  const email = session?.user?.email ?? "—";
+  const image = session?.user?.image ?? "";
+
   return (
-    <main className="mx-auto w-full max-w-md px-4 pb-24 pt-6">
-      <h1 className="mb-6 text-center text-2xl font-bold">Gas Station ERP</h1>
+    <main className="mx-auto w-full max-w-md px-4 pb-24 pt-6 space-y-6">
+      <header className="flex items-center gap-3">
+        <Avatar className="h-10 w-10">
+          <AvatarImage src={image} alt={name} />
+          <AvatarFallback>{name.slice(0, 2).toUpperCase()}</AvatarFallback>
+        </Avatar>
+        <div className="min-w-0">
+          <h1 className="text-xl font-semibold leading-tight">
+            Welcome, {name}
+          </h1>
+          <p className="text-sm text-muted-foreground truncate">
+            {email}
+          </p>
+        </div>
+      </header>
 
       <section className="grid grid-cols-2 gap-4">
         {tiles.map(({ href, label, Icon }) => (
@@ -25,5 +50,5 @@ export default function HomePage() {
         ))}
       </section>
     </main>
-  )
+  );
 }
