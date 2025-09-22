@@ -1,15 +1,12 @@
-'use client'
+"use client"
 
-import Link from 'next/link'
-import { Card } from '@/components/ui/card'
-import { Fuel, ShoppingBag, FileText, Settings, BottleWine } from 'lucide-react'
+import Link from "next/link"
+import { Card } from "@/components/ui/card"
+import { Fuel, Settings } from "lucide-react"
 
 const tiles = [
-  { href: '/dispensers', label: 'Dispensers', Icon: Fuel },
-  { href: '/lubricants', label: 'Lubricants', Icon: BottleWine },
-  { href: '/sales', label: 'Sales', Icon: ShoppingBag },
-  { href: '/reports', label: 'Reports', Icon: FileText },
-  { href: '/settings', label: 'Settings', Icon: Settings },
+  { href: "/dispensers", label: "Dispensers", Icon: Fuel },
+  { href: "/settings", label: "Settings", Icon: Settings },
 ]
 
 export default function HomePage() {
