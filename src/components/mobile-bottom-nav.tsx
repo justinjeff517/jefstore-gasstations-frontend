@@ -6,10 +6,7 @@ import { Fuel, ShoppingBag, FileText, Settings, BottleWine, ClipboardList } from
 
 const items = [
   { href: "/dispensers", label: "Dispensers", Icon: Fuel },
-  { href: "/lubricants", label: "Lubricants", Icon: BottleWine },
-  { href: "/sales", label: "Sales", Icon: ShoppingBag },
   { href: "/purchase-orders", label: "POs", Icon: ClipboardList }, // ← added
-  { href: "/reports", label: "Reports", Icon: FileText },
   { href: "/settings", label: "Settings", Icon: Settings },
 ];
 
