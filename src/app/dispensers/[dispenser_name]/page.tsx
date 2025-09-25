@@ -1,10 +1,19 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-const SAMPLE_PUMPS = [
+// ...your SAMPLE_PUMPS / SAMPLE_REPORT...
+
+export default function Page() {
+  const { dispenser_name } = useParams();
+  const router = useRouter();
+  const dn = Array.isArray(dispenser_name) ? dispenser_name[0] : dispenser_name;
+
+
+
+  const SAMPLE_PUMPS = [
   { id: "1", name: "diesel", product: "Diesel", fuel_dispenser_name: "east" },
   { id: "2", name: "regular", product: "Regular", fuel_dispenser_name: "east" },
   { id: "3", name: "diesel", product: "Diesel", fuel_dispenser_name: "west" },
@@ -23,17 +32,15 @@ const SAMPLE_REPORT = {
   liter_meter: 1500,
 };
 
-export default function Page() {
-  const { dispenser_name } = useParams();
-  const todayHuman = new Intl.DateTimeFormat("en-PH", { dateStyle: "full" }).format(new Date());
 
-  const pumps = SAMPLE_PUMPS.filter((p) => p.fuel_dispenser_name === dispenser_name);
+  const todayHuman = new Intl.DateTimeFormat("en-PH", { dateStyle: "full" }).format(new Date());
+  const pumps = SAMPLE_PUMPS.filter((p) => p.fuel_dispenser_name === dn);
   if (pumps.length === 0) return <div className="p-4">Not found</div>;
 
   return (
     <div className="mx-auto w-full max-w-screen-sm sm:max-w-screen-md md:max-w-screen-lg p-4 space-y-4">
       <header className="sticky top-0 z-10 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-2">
-        <h1 className="text-lg sm:text-xl font-semibold capitalize">Dispenser: {dispenser_name}</h1>
+        <h1 className="text-lg sm:text-xl font-semibold capitalize">Dispenser: {dn}</h1>
         <p className="text-xs sm:text-sm text-muted-foreground">{todayHuman}</p>
       </header>
 
@@ -64,9 +71,15 @@ export default function Page() {
             </CardContent>
 
             <CardFooter className="flex flex-col items-center space-y-2">
-              <Button className="w-full h-12 text-base">Create</Button>
+              <Button
+                className="w-full h-12 text-base"
+                onClick={() => router.push(`/dispensers/${dn}/create`)}
+                aria-label={`Create ${pump.product} report for ${dn} dispenser`}
+              >
+                Create
+              </Button>
               <p className="text-xs text-muted-foreground text-center">
-                {dispenser_name} dispenser – {pump.name} pump inventory
+                {dn} dispenser – {pump.name} pump inventory
               </p>
             </CardFooter>
           </Card>
@@ -75,6 +88,11 @@ export default function Page() {
     </div>
   );
 }
+
+
+// Row component unchanged...
+
+
 
 function Row({
   label,

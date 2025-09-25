@@ -21,6 +21,8 @@ export default function HomePage() {
     "User";
   const email = session?.user?.email ?? "—";
   const image = session?.user?.image ?? "";
+  const location = session?.user?.location ?? "";
+  const role = session?.user?.role ?? "";
 
   return (
     <main className="mx-auto w-full max-w-md px-4 pb-24 pt-6 space-y-6">
@@ -35,6 +37,12 @@ export default function HomePage() {
           </h1>
           <p className="text-sm text-muted-foreground truncate">
             {email}
+          </p>
+          <p className="text-sm text-muted-foreground truncate">
+            {location}
+          </p>
+          <p className="text-sm text-muted-foreground truncate">
+            {role}
           </p>
         </div>
       </header>
