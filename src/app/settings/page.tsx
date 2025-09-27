@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ChevronRight } from 'lucide-react'
 import { useSession, signOut } from 'next-auth/react'
-
+import Link from 'next/link'
 type SettingsModel = {
   orgName: string
   currency: 'PHP' | 'USD'
@@ -117,6 +117,19 @@ export default function SettingsPage() {
             checked={s.autoBackup}
             onChange={(v) => setS({ ...s, autoBackup: v })}
           />
+<li className="px-4">
+  <Link
+    href="/settings/fuel-balance"
+    aria-label="Fuel Balance"
+    className="group flex h-12 w-full items-center justify-between text-left rounded-lg px-2 transition
+               hover:bg-muted/60 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+  >
+    <span className="text-sm font-medium">Fuel Balance</span>
+    <ChevronRight className="h-4 w-4 opacity-70 transition-transform duration-150 group-hover:translate-x-0.5 group-active:translate-x-1" />
+  </Link>
+</li>
+
+
           <li className="px-4">
             <button
               className="flex h-12 w-full items-center justify-between text-left"
