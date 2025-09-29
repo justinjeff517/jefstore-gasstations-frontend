@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
@@ -14,6 +15,7 @@ import {
   Droplet,
   Calendar,
   Clock,
+  ArrowLeft,
 } from "lucide-react";
 import { formatDistanceToNow, parseISO } from "date-fns";
 
@@ -68,7 +70,18 @@ export default function Page() {
 
   return (
     <main className="mx-auto w-full max-w-md p-4 sm:p-6 space-y-4">
-      <h1 className="text-lg font-semibold">Add Purchase Order</h1>
+      {/* Arrow return link */}
+      <div className="flex items-center gap-2">
+        <Link
+          href="/purchase-orders"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+          aria-label="Back to Purchase Orders"
+        >
+          <ArrowLeft className="h-5 w-5" />
+          <span className="hidden sm:inline">Back</span>
+        </Link>
+        <h1 className="text-lg font-semibold">Add Purchase Order</h1>
+      </div>
 
       <form onSubmit={handleVerify} className="space-y-3">
         <Input
@@ -107,31 +120,44 @@ export default function Page() {
         <div className="rounded-lg border p-4 text-sm space-y-2">
           <div className="flex items-center space-x-2">
             <FileText className="h-4 w-4" />
-            <p><strong>PO Number:</strong> {order.po_number}</p>
+            <p>
+              <strong>PO Number:</strong> {order.po_number}
+            </p>
           </div>
           <div className="flex items-center space-x-2">
             <Droplet className="h-4 w-4" />
-            <p><strong>Product:</strong> {order.product}</p>
+            <p>
+              <strong>Product:</strong> {order.product}
+            </p>
           </div>
           <div className="flex items-center space-x-2">
             <Truck className="h-4 w-4" />
-            <p><strong>Plate No.:</strong> {order.plate_number}</p>
+            <p>
+              <strong>Plate No.:</strong> {order.plate_number}
+            </p>
           </div>
           <div className="flex items-center space-x-2">
             <User className="h-4 w-4" />
-            <p><strong>Driver:</strong> {order.driver}</p>
+            <p>
+              <strong>Driver:</strong> {order.driver}
+            </p>
           </div>
           <div className="flex items-center space-x-2">
             <MapPin className="h-4 w-4" />
-            <p><strong>Route:</strong> {order.route}</p>
+            <p>
+              <strong>Route:</strong> {order.route}
+            </p>
           </div>
           <div className="flex items-center space-x-2">
             <Droplet className="h-4 w-4" />
-            <p><strong>Quantity:</strong> {order.quantity_liters} L</p>
+            <p>
+              <strong>Quantity:</strong> {order.quantity_liters} L</p>
           </div>
           <div className="flex items-center space-x-2">
             <Calendar className="h-4 w-4" />
-            <p><strong>Date:</strong> {order.date}</p>
+            <p>
+              <strong>Date:</strong> {order.date}
+            </p>
           </div>
           <div className="flex items-center space-x-2">
             <Clock className="h-4 w-4" />
