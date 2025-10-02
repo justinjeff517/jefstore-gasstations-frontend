@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import VerifyPOCard from "@/components/purchase-orders/internal/VerifyPOCard";
 import ResultCard from "@/components/purchase-orders/internal/ResultCard";
-import CreatePOCard from "@/components/purchase-orders/internal/CreatePOCard";
 import type { FuelPO } from "@/components/purchase-orders/internal/types";
 
 export default function Page() {
@@ -29,7 +28,7 @@ export default function Page() {
       <div className="flex flex-col gap-4">
         <VerifyPOCard onVerified={setResult} onError={setError} />
         <ResultCard result={result} />
-        <CreatePOCard />
+    
       </div>
     </main>
   );

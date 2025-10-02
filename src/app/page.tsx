@@ -4,11 +4,14 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { Card } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Fuel, Settings } from "lucide-react";
+import { Fuel, Settings, Receipt, PlusCircle, FileText } from "lucide-react";
 
 const tiles = [
   { href: "/dispensers", label: "Dispensers", Icon: Fuel },
+  { href: "/addstocks", label: "Add Stocks", Icon: PlusCircle },
+  { href: "/sales-invoices/", label: "Sales Invoices", Icon: FileText },
   { href: "/settings", label: "Settings", Icon: Settings },
+  { href: "/sales-report", label: "Sales Report", Icon: Receipt },
 ];
 
 export default function HomePage() {
