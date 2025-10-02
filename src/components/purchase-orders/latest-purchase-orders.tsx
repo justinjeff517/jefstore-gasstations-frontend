@@ -1,5 +1,4 @@
-// No "use client" needed here (no hooks). Add it if your setup requires.
-import Link from "next/link";
+// components/purchase-orders/LatestPurchaseOrders.tsx
 import {
   Table,
   TableHeader,
@@ -8,17 +7,7 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-
-export type PurchaseOrder = {
-  id: string;
-  date: string;
-  po_number: string;
-  vehicle: string;
-  product: string;
-  quantity: number;
-  driver: string;
-  route: string;
-};
+import { PurchaseOrder, PurchaseOrderDialog } from "./PurchaseOrderDialog";
 
 type Props = {
   data: PurchaseOrder[];
@@ -26,6 +15,7 @@ type Props = {
 
 export default function LatestPurchaseOrders({ data }: Props) {
   const rows = data.slice(0, 4);
+
   return (
     <div className="overflow-x-auto rounded-md border">
       <Table>
@@ -39,27 +29,33 @@ export default function LatestPurchaseOrders({ data }: Props) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {rows.map((po) => (
-            <TableRow key={po.id} className="hover:bg-muted/40">
-              <TableCell>
-                {new Date(po.date + "T00:00:00").toLocaleDateString("en-PH", {
-                  month: "short",
-                  day: "2-digit",
-                })}
-              </TableCell>
-              <TableCell>
-                <Link
-                  href={`/purchase-orders/${po.po_number}`}
-                  className="underline underline-offset-4"
-                >
+          {rows.map((po) => {
+            const dateShort = new Date(po.date + "T00:00:00").toLocaleDateString("en-PH", {
+              month: "short",
+              day: "2-digit",
+            });
+
+            const row = (
+              <TableRow
+                className="hover:bg-muted/40 cursor-pointer"
+                key={po.id}
+              >
+                <TableCell>{dateShort}</TableCell>
+                <TableCell className="underline underline-offset-4">
                   {po.po_number}
-                </Link>
-              </TableCell>
-              <TableCell>{po.vehicle}</TableCell>
-              <TableCell>{po.product}</TableCell>
-              <TableCell className="text-right">{po.quantity}</TableCell>
-            </TableRow>
-          ))}
+                </TableCell>
+                <TableCell>{po.vehicle}</TableCell>
+                <TableCell>{po.product}</TableCell>
+                <TableCell className="text-right">{po.quantity}</TableCell>
+              </TableRow>
+            );
+
+            return (
+              <PurchaseOrderDialog key={po.id} po={po}>
+                {row}
+              </PurchaseOrderDialog>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
