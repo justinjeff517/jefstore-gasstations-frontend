@@ -21,9 +21,9 @@ export default function Page() {
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
           <Button asChild className="gap-2">
-            <Link href="/purchase-orders/add-internal">
+            <Link href="/purchase-orders/internal">
               <Plus className="h-5 w-5" aria-hidden="true" />
-              Add Internal PO
+              Internal PO
             </Link>
           </Button>
 
