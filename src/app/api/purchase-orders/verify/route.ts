@@ -3,17 +3,6 @@ import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-function unwrap(data: any) {
-  if (data && typeof data === "object" && "body" in data) {
-    try {
-      return JSON.parse((data as any).body);
-    } catch {
-      return (data as any).body;
-    }
-  }
-  return data;
-}
-
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const po_number = searchParams.get("po_number");
@@ -26,34 +15,25 @@ export async function GET(req: Request) {
     "https://faas-sgp1-18bc02ac.doserverless.co/api/v1/web/fn-86217a9f-1135-4904-b49a-fe070d4e10c7/purchase-orders/get-fuel-by-po-number";
 
   try {
-    // Upstream expects po_number in the JSON body, so we POST to it.
     const r = await fetch(upstream, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ po_number }),
-      // Prevent Next from caching upstream responses
-      cache: "no-store",
     });
 
-    const text = await r.text();
-    let payload: any;
-    try {
-      payload = JSON.parse(text);
-    } catch {
-      payload = text;
-    }
-
     if (!r.ok) {
+      const text = await r.text();
       return NextResponse.json(
-        { error: "Upstream request failed", status: r.status, body: payload },
-        { status: r.status }
+        { error: "Upstream request failed", status: r.status, body: text },
+        { status: 502 }
       );
     }
 
-    return NextResponse.json(unwrap(payload));
+    const data = await r.json();
+    return NextResponse.json(data);
   } catch (err: any) {
     return NextResponse.json(
-      { error: "Request error", message: err?.message ?? String(err) },
+      { error: "Internal error", details: err.message },
       { status: 500 }
     );
   }

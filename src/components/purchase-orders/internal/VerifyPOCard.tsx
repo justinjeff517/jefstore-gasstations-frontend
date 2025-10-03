@@ -16,6 +16,8 @@ type Props = {
 
 type Status = "idle" | "found" | "not_found";
 
+const API_PATH = "/api/purchase-orders/verify";
+
 export default function VerifyPOCard({ onVerified, onError }: Props) {
   const [verifying, setVerifying] = useState(false);
   const [poNumber, setPoNumber] = useState("");
@@ -23,6 +25,7 @@ export default function VerifyPOCard({ onVerified, onError }: Props) {
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const lastQueriedRef = useRef<string>("");
 
   function sanitize(val: string) {
     return val.replace(/\D/g, "").slice(0, 8);
@@ -37,6 +40,8 @@ export default function VerifyPOCard({ onVerified, onError }: Props) {
 
   async function verify(po: string) {
     if (po.length !== 8 || loading) return;
+    if (lastQueriedRef.current === po) return;
+    lastQueriedRef.current = po;
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -48,31 +53,36 @@ export default function VerifyPOCard({ onVerified, onError }: Props) {
     setStatus("idle");
 
     try {
-      const url = `/api/purchase-orders/verify?po_number=${encodeURIComponent(po)}`;
+      const url = `${API_PATH}?po_number=${encodeURIComponent(po)}`;
       const r = await fetch(url, { method: "GET", cache: "no-store", signal: controller.signal });
 
-      let data: any;
+      // Try JSON first, fall back to text
+      let payload: any;
       try {
-        data = await r.json();
+        payload = await r.json();
       } catch {
-        data = { error: await r.text() };
+        payload = { error: await r.text() };
       }
 
-      if (!r.ok || (data && typeof data === "object" && data.error)) {
+      // Non-2xx or explicit error field → not found
+      if (!r.ok || (payload && typeof payload === "object" && payload.error)) {
         return markNotFound();
       }
 
+      // Unwrap `{ ok, data }` shape
+      const poData = payload && typeof payload === "object" && "data" in payload ? payload.data : payload;
+
       const looksFuel =
-        data &&
-        typeof data === "object" &&
-        data.type === "fuel" &&
-        typeof data.po_number === "string" &&
-        data.po_number.length === 8;
+        poData &&
+        typeof poData === "object" &&
+        poData.type === "fuel" &&
+        typeof poData.po_number === "string" &&
+        poData.po_number.length === 8;
 
       if (!looksFuel) return markNotFound();
 
       setStatus("found");
-      onVerified(data as FuelPO);
+      onVerified(poData as FuelPO);
     } catch (e: any) {
       if (e?.name !== "AbortError") {
         setStatus("idle");
@@ -86,7 +96,6 @@ export default function VerifyPOCard({ onVerified, onError }: Props) {
 
   useEffect(() => {
     if (poNumber.length === 8) verify(poNumber);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poNumber]);
 
   useEffect(() => {
@@ -125,18 +134,12 @@ export default function VerifyPOCard({ onVerified, onError }: Props) {
           <CheckCircle2 className={`h-6 w-6 ${iconColorClasses}`} aria-hidden />
           <CardTitle className="text-lg">Verify PO Number</CardTitle>
         </div>
-        <p className="text-sm text-muted-foreground">
-          Check if an internal PO already exists and is valid.
-        </p>
+        <p className="text-sm text-muted-foreground">Check if an internal PO already exists and is valid.</p>
       </CardHeader>
 
       <CardContent className="grid gap-4">
         {!verifying ? (
-          <Button
-            className="h-12 w-full text-base"
-            onClick={() => setVerifying(true)}
-            disabled={loading}
-          >
+          <Button className="h-12 w-full text-base" onClick={() => setVerifying(true)} disabled={loading}>
             Verify PO
           </Button>
         ) : (
@@ -146,10 +149,10 @@ export default function VerifyPOCard({ onVerified, onError }: Props) {
               <Input
                 id="po-number"
                 inputMode="numeric"
-                pattern="\d{8}"
+                pattern="^\d{8}$"
                 maxLength={8}
                 autoFocus
-                placeholder="Enter 8-digit PO (e.g. 11996189)"
+                placeholder="Enter 8-digit PO (e.g. 59675325)"
                 value={poNumber}
                 onChange={onInputChange}
                 className="h-12 text-base tracking-widest"
@@ -178,6 +181,7 @@ export default function VerifyPOCard({ onVerified, onError }: Props) {
                   setPoNumber("");
                   setError(null);
                   setStatus("idle");
+                  lastQueriedRef.current = "";
                   onError?.(null);
                 }}
               >
