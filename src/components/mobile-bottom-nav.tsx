@@ -8,7 +8,7 @@ import { Home, Fuel, ClipboardList, Settings } from "lucide-react";
 const items = [
   { href: "/", label: "Home", Icon: Home },
   { href: "/dispensers", label: "Dispensers", Icon: Fuel },
-  { href: "/purchase-orders", label: "POs", Icon: ClipboardList },
+
   { href: "/settings", label: "Settings", Icon: Settings },
 ];
 
